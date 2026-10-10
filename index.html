@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>SMIRNOV 3D DIGITAL — Создаем сайты будущего</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #03040a; overflow: hidden; overscroll-behavior: none; }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; -webkit-tap-highlight-color: transparent; }
+  .vignette { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 46%, rgba(60, 30, 120, .16), rgba(3, 4, 10, 0) 45%, rgba(1, 2, 6, .78) 100%); }
+  .hint { position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    text-align: center; font: 13px/1.4 -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    letter-spacing: .02em; color: rgba(170, 190, 255, .6); pointer-events: none; transition: opacity 1.4s ease; }
+  .hint.gone { opacity: 0; }
+
+  /* ===== Лендинг поверх сцены ===== */
+  :root { --tx: #eaf0ff; --mut: rgba(196,208,255,.72); --cy: #00e5ff; --mg: #ff2bd6; --mint: #00ffb3; --pad: clamp(20px, 5vw, 72px); }
+  html { height: auto; overflow-x: hidden; overflow-y: auto; overscroll-behavior: auto; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { height: auto; overflow: visible; color: var(--tx); font: 400 16px/1.55 Inter, -apple-system, "SF Pro Text", Roboto, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  html.scene-mode { overflow: hidden; }
+  #app { z-index: 0; } .vignette { z-index: 1; }
+  .ui { position: relative; z-index: 2; pointer-events: none; transition: opacity .5s ease, visibility .5s; }
+  .ui a, .ui button, .ui input, .glass { pointer-events: auto; }
+  html.scene-mode .ui, html.scene-mode .top { opacity: 0; visibility: hidden; }
+
+  .top { position: fixed; inset: 0 0 auto 0; z-index: 10; display: flex; justify-content: space-between; align-items: center;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) var(--pad) 14px; border-bottom: 1px solid transparent;
+    transition: background .3s, border-color .3s, opacity .5s, visibility .5s; }
+  .top.solid { background: rgba(3,4,10,.55); border-color: rgba(255,255,255,.07); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  .logo { color: #fff; text-decoration: none; font-weight: 800; font-size: 17px; line-height: 1.1; letter-spacing: .02em; text-shadow: 0 0 18px rgba(0,229,255,.55); }
+  .logo span { color: var(--cy); font-weight: 500; margin-left: .4em; }
+  .nav { display: flex; gap: clamp(14px, 3vw, 36px); }
+  .nav a { color: var(--mut); text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 2px; transition: color .2s, text-shadow .2s; }
+  .nav a:hover { color: #fff; text-shadow: 0 0 14px var(--cy); }
+  @media (max-width: 560px) {
+    .logo { font-size: 15px; } .logo span { display: block; margin: 2px 0 0; font-size: 10px; letter-spacing: .22em; }
+    .nav { gap: 14px; } .nav a { font-size: 13px; }
+  }
+
+  .hero { min-height: 100vh; min-height: 100svh; box-sizing: border-box; display: flex; align-items: flex-end;
+    padding: 120px var(--pad) clamp(40px, 9vh, 96px); }
+  .hero-in { max-width: 700px; }
+  h1 { margin: 0; font-size: clamp(2.5rem, 6.6vw, 5rem); font-weight: 800; line-height: 1.03; letter-spacing: -.035em;
+    background: linear-gradient(95deg, #8ff6ff 0%, #00e5ff 30%, #8b6dff 62%, #ff2bd6 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 16px rgba(0,229,255,.38)) drop-shadow(0 0 46px rgba(122,92,255,.4)); }
+  .lead { margin: 20px 0 32px; max-width: 30em; color: var(--mut); font-size: clamp(1rem, 1.7vw, 1.2rem); }
+
+  @property --a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  .btn { --a: 0deg; position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 17px 34px;
+    border: 0; border-radius: 16px; font: inherit; font-weight: 600; color: #fff; text-decoration: none; cursor: pointer;
+    background: rgba(8,10,26,.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: 0 0 32px rgba(0,229,255,.22), 0 0 64px rgba(255,43,214,.14); transition: box-shadow .3s, transform .2s; }
+  .btn::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px;
+    background: conic-gradient(from var(--a), #00e5ff, #7a5cff, #ff2bd6, #00ffb3, #00e5ff);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; animation: spin 5s linear infinite; }
+  @keyframes spin { to { --a: 360deg; } }
+  .btn:hover { box-shadow: 0 0 44px rgba(0,229,255,.4), 0 0 90px rgba(255,43,214,.28); transform: translateY(-1px); }
+  .btn:active { transform: scale(.98); } .btn:disabled { opacity: .6; cursor: wait; }
+  .btn:focus-visible, .scene-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+  .sec { max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(72px, 12vh, 140px) var(--pad); scroll-margin-top: 40px; }
+  h2 { margin: 0 0 12px; font-size: clamp(1.9rem, 4.4vw, 3.2rem); font-weight: 700; line-height: 1.08; letter-spacing: -.03em; text-shadow: 0 0 28px rgba(122,92,255,.5); }
+  .sub { margin: 0 0 clamp(28px, 5vw, 48px); max-width: 34em; color: var(--mut); }
+
+  .glass { background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.015) 40%), rgba(8,10,26,.46);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12); }
+  .cards { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  .card { --c: var(--cy); position: relative; display: flex; flex-direction: column; gap: 10px; min-height: 230px; padding: 28px; overflow: hidden;
+    transition: border-color .3s, box-shadow .3s; }
+  .card::after { content: ""; position: absolute; left: 28px; top: 0; width: 56px; height: 2px; background: var(--c); box-shadow: 0 0 18px 2px var(--c); }
+  .card:hover { border-color: color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 40px -8px var(--c); }
+  .card h3 { margin: 6px 0 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--mut); font-size: .97rem; }
+  .card .price { margin-top: auto; padding-top: 18px; font-size: 1.7rem; font-weight: 700; color: var(--c); text-shadow: 0 0 22px var(--c); }
+  .price small { margin-right: 6px; font-size: .9rem; font-weight: 500; color: var(--mut); text-shadow: none; }
+  @media (min-width: 600px) and (max-width: 959px) {
+    .card { display: grid; grid-template-columns: 1fr auto; column-gap: 24px; min-height: 0; }
+    .card h3, .card p { grid-column: 1; } .card .price { grid-column: 2; grid-row: 1 / span 2; align-self: center; margin: 0; padding: 0; }
+  }
+  @media (min-width: 960px) { .cards { grid-template-columns: repeat(3, 1fr); gap: 22px; } }
+
+  .panel { display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: center; justify-content: space-between; padding: clamp(26px, 5vw, 48px); }
+  .panel h2 { font-size: clamp(1.6rem, 3.4vw, 2.4rem); } .panel p { margin: 0; max-width: 30em; color: var(--mut); }
+  .link { color: var(--cy); font-weight: 600; text-decoration: none; padding-bottom: 2px; border-bottom: 1px solid rgba(0,229,255,.4); text-shadow: 0 0 16px rgba(0,229,255,.5); }
+
+  .contact { display: grid; gap: clamp(28px, 5vw, 64px); grid-template-columns: 1fr; align-items: center; }
+  @media (min-width: 900px) { .contact { grid-template-columns: 1fr 1fr; } }
+  form.glass { display: grid; gap: 18px; padding: clamp(22px, 4vw, 36px); }
+  label { display: grid; gap: 8px; font-size: .9rem; font-weight: 500; color: var(--mut); }
+  input { width: 100%; box-sizing: border-box; padding: 15px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(3,4,12,.55); color: #fff; font: inherit; font-size: 16px; outline: 0; transition: border-color .2s, box-shadow .2s; }
+  input::placeholder { color: rgba(196,208,255,.38); }
+  input:focus { border-color: var(--cy); box-shadow: 0 0 0 3px rgba(0,229,255,.18), 0 0 24px rgba(0,229,255,.25); }
+  input[aria-invalid="true"] { border-color: #ff5d7a; }
+  form .btn { width: 100%; }
+  .status { min-height: 1.4em; margin: 0; font-size: .92rem; color: var(--mut); } .status.ok { color: var(--mint); } .status.err { color: #ff7a93; }
+  footer { padding: 28px var(--pad) calc(80px + env(safe-area-inset-bottom, 0px)); text-align: center; font-size: .85rem; color: rgba(196,208,255,.45); }
+
+  .scene-btn { position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16);
+    background: rgba(8,10,26,.55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    color: #fff; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+  .scene-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--cy); stroke-width: 1.6; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn::before { animation: none; } }
+
+  /* ===== Читаемость, типографика, переключатель 3D ===== */
+  :root { --mut: rgba(255,255,255,.88); --disp: Orbitron, "Exo 2", Inter, -apple-system, sans-serif; }
+  .ui { pointer-events: auto; }
+  .top, .top.solid { background: rgba(10,10,10,.75); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); border-color: rgba(255,255,255,.08); }
+  .glass, .plate { background: rgba(10,10,10,.75); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,.1); box-shadow: 0 16px 48px rgba(0,0,0,.45); }
+  .plate { width: fit-content; max-width: 100%; box-sizing: border-box; padding: clamp(20px, 3.5vw, 32px); border-radius: 24px; }
+  .hero-in.plate { max-width: min(640px, 100%); }
+  .hero-in .lead { margin: 16px 0 26px; }
+  .plate h2 { margin-bottom: 10px; } .plate .sub { margin-bottom: 0; }
+  .plate.head { margin-bottom: clamp(24px, 4vw, 40px); }
+  .plate.foot { display: inline-block; width: auto; padding: 10px 18px; border-radius: 999px; font-size: .85rem; color: rgba(255,255,255,.8); }
+  footer { color: rgba(255,255,255,.8); }
+  .glass h2, .plate h2 { color: #fff; text-shadow: none; }
+
+  h1, h2, h3, .logo, .btn, .card .price, .scene-btn .lbl { font-family: var(--disp); }
+  h1 { font-size: clamp(2.2rem, 5.6vw, 4.4rem); font-weight: 800; letter-spacing: -.01em; line-height: 1.06; }
+  h2 { font-weight: 700; letter-spacing: 0; font-size: clamp(1.6rem, 3.8vw, 2.7rem); }
+  .card h3 { font-size: 1.25rem; font-weight: 700; letter-spacing: .01em; }
+  .logo { font-size: 15px; font-weight: 900; letter-spacing: .06em; }
+  .logo span { font-weight: 500; }
+  .btn { font-weight: 700; letter-spacing: .02em; }
+  .card .price { font-size: 1.5rem; font-weight: 700; }
+  .price small { font-family: Inter, -apple-system, sans-serif; }
+  @media (max-width: 560px) {
+    .logo { font-size: 13px; letter-spacing: .04em; } .logo span { font-size: 9px; letter-spacing: .16em; }
+    .nav { gap: 12px; } .hero .lead { font-size: .95rem; }
+  }
+
+  .scene-btn { gap: 12px; padding: 10px 12px 10px 16px; background: rgba(10,10,10,.75); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); }
+  .scene-btn .lbl { font-size: 13px; font-weight: 700; letter-spacing: .04em; }
+  .scene-btn .track { position: relative; width: 40px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.2); transition: background .25s, box-shadow .25s; }
+  .scene-btn .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .25s, background .25s; }
+  .scene-btn[aria-checked="true"] .track { background: var(--cy); box-shadow: 0 0 16px var(--cy); }
+  .scene-btn[aria-checked="true"] .track::after { transform: translateX(18px); background: #04121a; }
+
+  /* ===== Форма заявки ===== */
+  select, textarea { width: 100%; box-sizing: border-box; padding: 15px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(3,4,12,.55); color: #fff; font: inherit; font-size: 16px; outline: 0; transition: border-color .2s, box-shadow .2s; }
+  select { -webkit-appearance: none; appearance: none; padding-right: 44px; cursor: pointer; background-repeat: no-repeat; background-position: right 16px center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none' stroke='%2300e5ff' stroke-width='2'%3E%3Cpath d='M1 1l6 6 6-6'/%3E%3C/svg%3E"); }
+  select option { background: #0a0a0a; color: #fff; }
+  textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+  textarea::placeholder { color: rgba(196,208,255,.38); }
+  select:focus, textarea:focus { border-color: var(--cy); box-shadow: 0 0 0 3px rgba(0,229,255,.18), 0 0 24px rgba(0,229,255,.25); }
+  select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #ff5d7a; }
+  .err-msg { font-size: .85rem; font-weight: 400; color: #ff7a93; } .err-msg:empty { display: none; }
+  .hp-wrap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .fields { display: grid; gap: 18px; }
+  .ok-card { display: none; } form.sent .ok-card { display: grid; gap: 14px; } form.sent .fields { display: none; }
+  .ok-card h3 { margin: 0; font-size: 1.4rem; color: var(--mint); } .ok-card p { margin: 0; color: var(--mut); } .ok-card:focus { outline: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+<header class="top" id="top">
+  <a class="logo" href="#hero" aria-label="SMIRNOV 3D DIGITAL, наверх">SMIRNOV <span>3D DIGITAL</span></a>
+  <nav class="nav" aria-label="Разделы"><a href="#services">Услуги</a><a href="#portfolio">Портфолио</a><a href="#contact">Контакты</a></nav>
+</header>
+
+<main class="ui">
+  <section class="hero" id="hero">
+    <div class="hero-in plate">
+      <h1>Создаем сайты будущего</h1>
+      <p class="lead">Делаем интерактивные 3D-сайты, веб-дизайн и MVP-приложения, которые выделяют бизнес и приводят клиентов.</p>
+      <a class="btn" href="#contact">Обсудить проект</a>
+    </div>
+  </section>
+
+  <section class="sec" id="services">
+    <div class="plate head">
+      <h2>Услуги</h2>
+      <p class="sub">Три формата работы под разные задачи и бюджет.</p>
+    </div>
+    <div class="cards">
+      <article class="card glass" style="--c:#00e5ff">
+        <h3>3D Лендинги</h3>
+        <p>Интерактивная WebGL-сцена на первом экране: сайт, который запоминают и о котором рассказывают.</p>
+        <div class="price"><small>от</small>20 000 ₽</div>
+      </article>
+      <article class="card glass" style="--c:#ff2bd6">
+        <h3>Web-дизайн</h3>
+        <p>Фирменный стиль, UI-кит и адаптивные макеты, одинаково сильные на iPhone, iPad и десктопе.</p>
+        <div class="price"><small>от</small>10 000 ₽</div>
+      </article>
+      <article class="card glass" style="--c:#a58bff">
+        <h3>MVP приложения</h3>
+        <p>Рабочий прототип продукта, чтобы проверить идею и получить первых пользователей.</p>
+        <div class="price"><small>от</small>30 000 ₽</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="sec" id="portfolio">
+    <div class="panel glass">
+      <div>
+        <h2>Портфолио</h2>
+        <p>Кейсы готовим к публикации. Расскажите о задаче, и мы покажем работы, близкие вашему проекту.</p>
+      </div>
+      <a class="link" href="#contact">Запросить подборку</a>
+    </div>
+  </section>
+
+  <section class="sec" id="contact">
+    <div class="contact">
+      <div class="plate">
+        <h2>Обсудим ваш проект</h2>
+        <p class="sub">Оставьте имя и Telegram. Мы свяжемся, уточним задачу и назовём сроки и стоимость.</p>
+      </div>
+      <form class="glass" id="lead" novalidate>
+        <div class="fields">
+          <label>Имя
+            <input name="name" autocomplete="name" maxlength="80" placeholder="Как к вам обращаться" aria-describedby="e-name">
+            <span class="err-msg" id="e-name"></span></label>
+          <label>Контакт для ответа
+            <input name="contact" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="@telegram, email или телефон" aria-describedby="e-contact">
+            <span class="err-msg" id="e-contact"></span></label>
+          <label>Тип проекта
+            <select name="type">
+              <option value="3D-сайт">3D-сайт</option>
+              <option value="Веб-дизайн">Веб-дизайн</option>
+              <option value="MVP-приложение">MVP-приложение</option>
+              <option value="Другое">Другое</option>
+            </select></label>
+          <label>Кратко о задаче
+            <textarea name="message" rows="4" maxlength="2000" placeholder="Что нужно сделать и к какому сроку" aria-describedby="e-message"></textarea>
+            <span class="err-msg" id="e-message"></span></label>
+          <label>Бюджет, необязательно
+            <input name="budget" maxlength="60" placeholder="Например, 50 000 ₽" aria-describedby="e-budget">
+            <span class="err-msg" id="e-budget"></span></label>
+          <div class="hp-wrap" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
+          <button class="btn" type="submit"><span class="btn-t">Отправить заявку</span></button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="ok-card" id="okCard" tabindex="-1">
+          <h3>Заявка отправлена</h3>
+          <p>Спасибо! Мы получили сообщение и ответим по указанному контакту.</p>
+          <button class="btn" type="button" id="again">Отправить ещё одну</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <footer><span class="plate foot">© 2026 SMIRNOV 3D DIGITAL</span></footer>
+</main>
+
+<button class="scene-btn" id="sceneBtn" type="button" role="switch" aria-checked="false">
+  <span class="lbl">Режим 3D</span><span class="track" aria-hidden="true"></span>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+<script>
+(function () {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const timeScale = reduceMotion ? 0.35 : 1;
+  const pr = Math.min(window.devicePixelRatio || 1, 2);
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const rand = Math.random;
+
+  // ---------- Renderer / scene / camera ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(pr);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x03040a);
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 300);
+  camera.position.set(0, 2.4, 11.5);
+
+  // ---------- Процедурное окружение для глянцевых отражений ----------
+  (function buildEnv() {
+    const env = new THREE.Scene();
+    env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x04050c, side: THREE.BackSide })));
+    const panel = (hex, k, w, h, pos) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(k), side: THREE.DoubleSide }));
+      m.position.set(pos[0], pos[1], pos[2]); m.lookAt(0, 0, 0); env.add(m);
+    };
+    panel(0x00e5ff, 3.0, 30, 6, [-25, 6, 15]);
+    panel(0xff2bd6, 3.0, 30, 5, [25, -4, 10]);
+    panel(0x7a5cff, 2.5, 20, 20, [0, 30, -10]);
+    panel(0xffffff, 2.2, 14, 5, [5, 18, 25]);
+    panel(0x00ffb3, 2.0, 25, 3, [0, -20, -20]);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(env, 0.02).texture;
+    pmrem.dispose();
+  })();
+
+  // ---------- Центральная сфера ----------
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1.6, 128, 128),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x04050a, metalness: 0.92, roughness: 0.1,
+      clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.25
+    })
+  );
+  scene.add(sphere);
+
+  // мягкое неоновое свечение по краю сферы (френель)
+  const haloU = { uDir: { value: new THREE.Vector3(0, 0, 1) }, uWave: { value: -1 }, uHold: { value: 0 }, uPulse: { value: -1 } };
+  const halo = new THREE.Mesh(
+    new THREE.SphereGeometry(1.68, 64, 64),
+    new THREE.ShaderMaterial({
+      uniforms: haloU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `
+        varying vec3 vN; varying vec3 vV; varying vec3 vO;
+        void main(){
+          vO = normalize(position);
+          vN = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position,1.0);
+          vV = normalize(-mv.xyz);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform vec3 uDir; uniform float uWave; uniform float uHold; uniform float uPulse;
+        varying vec3 vN; varying vec3 vV; varying vec3 vO;
+        void main(){
+          float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.2);
+          vec3 c = mix(vec3(0.0,0.9,1.0), vec3(1.0,0.17,0.84), 0.5 + 0.5 * vN.x);
+          vec3 col = c * f * f * 1.5;
+          float ang = acos(clamp(dot(normalize(vO), normalize(uDir)), -1.0, 1.0));
+          vec3 cy = vec3(0.0, 0.85, 1.0);
+          vec3 vi = vec3(0.55, 0.35, 1.0);
+          if (uWave >= 0.0) {                       // волна от точки касания
+            float d = (ang - uWave * 2.6) / 0.2;
+            col += mix(cy, vi, smoothstep(0.0, 1.6, ang)) * exp(-d * d) * (1.0 - uWave);
+          }
+          if (uHold > 0.0) {                        // свечение растёт при удержании
+            float g = exp(-ang * ang / (0.25 + 0.5 * uHold)) * uHold;
+            col += mix(cy, vi, uHold) * g * 0.8;
+          }
+          if (uPulse >= 0.0) {                      // мягкий импульс при отпускании
+            float d2 = (ang - uPulse * 3.0) / 0.3;
+            float k = 1.0 - uPulse;
+            col += mix(vi, cy, uPulse) * exp(-d2 * d2) * k + vec3(0.7, 0.6, 1.0) * exp(-ang * ang / 0.4) * k * k * 0.45;
+          }
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    })
+  );
+  scene.add(halo);
+
+  // ---------- Свет ----------
+  scene.add(new THREE.AmbientLight(0x202040, 0.6));
+  const lightA = new THREE.PointLight(0x00e5ff, 3.0, 30);
+  const lightB = new THREE.PointLight(0xff2bd6, 3.0, 30);
+  scene.add(lightA, lightB);
+
+  // ---------- Неоновые кольца на сложных орбитах ----------
+  const RINGS = [
+    { r: 2.5, t: .025, c: 0x00e5ff, tilt: [0.5, 0, 0.3],   spin: .9,  prec: .12,  e: 1 },
+    { r: 3.1, t: .030, c: 0xff2bd6, tilt: [-0.9, 0, 0.6],  spin: -.7, prec: -.09, e: .82 },
+    { r: 3.8, t: .020, c: 0x7a5cff, tilt: [1.2, 0, -0.4],  spin: .5,  prec: .15,  e: .7 },
+    { r: 4.5, t: .035, c: 0x00ffb3, tilt: [-0.3, 0, 1.1],  spin: -.4, prec: .07,  e: .9,  arc: Math.PI * 1.4 },
+    { r: 5.3, t: .022, c: 0xff6a3d, tilt: [0.8, 0, -1.0],  spin: .3,  prec: -.11, e: .76 },
+    { r: 2.9, t: .015, c: 0xffffff, tilt: [0.1, 0, -0.7],  spin: 1.3, prec: .2,   e: .95, arc: Math.PI * 1.1 },
+    { r: 6.0, t: .018, c: 0x38b6ff, tilt: [-1.3, 0, -0.2], spin: -.25, prec: .05, e: 1,   arc: Math.PI * 1.7 }
+  ];
+  const ringObjs = RINGS.map((cfg, i) => {
+    const arc = cfg.arc || Math.PI * 2;
+    const pivot = new THREE.Group();
+    pivot.rotation.set(cfg.tilt[0], cfg.tilt[1], cfg.tilt[2]);
+    const spin = new THREE.Group();
+    spin.scale.z = cfg.e;
+
+    const core = new THREE.Mesh(
+      new THREE.TorusGeometry(cfg.r, cfg.t, 12, 220, arc),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(cfg.c).multiplyScalar(2.2) })
+    );
+    const glow = new THREE.Mesh(
+      new THREE.TorusGeometry(cfg.r, cfg.t * 3.5, 8, 220, arc),
+      new THREE.MeshBasicMaterial({ color: cfg.c, transparent: true, opacity: .1,
+        blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    core.rotation.x = glow.rotation.x = Math.PI / 2;
+
+    const bead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.075 + cfg.t, 16, 16),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(cfg.c).lerp(new THREE.Color(0xffffff), .5).multiplyScalar(4) })
+    );
+    bead.position.set(cfg.r, 0, 0);
+
+    const proxy = new THREE.Mesh(new THREE.TorusGeometry(cfg.r, 0.28, 6, 72, arc), new THREE.MeshBasicMaterial({ visible: false }));
+    proxy.rotation.x = Math.PI / 2; proxy.userData.ring = i;
+    spin.add(core, glow, bead, proxy);
+    pivot.add(spin);
+    scene.add(pivot);
+    return { cfg, pivot, spin, i, core, proxy, col: new THREE.Color(cfg.c), boost: 0 };
+  });
+
+  // ---------- Рой мерцающих частиц (орбиты считаются в шейдере) ----------
+  const N = coarse ? 2800 : 5000;
+  const palette = [0x00e5ff, 0xff2bd6, 0x7a5cff, 0x00ffb3, 0xffffff, 0x38b6ff].map(h => new THREE.Color(h));
+  const aOrbit = new Float32Array(N * 4), aMisc = new Float32Array(N * 4), aColor = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const radius = 2.3 + Math.pow(rand(), 1.5) * 5.2;
+    const dir = rand() > 0.2 ? 1 : -1;
+    aOrbit.set([radius, rand() * 6.2832, dir * (0.06 + rand() * 0.4) / Math.sqrt(radius), Math.acos(2 * rand() - 1)], i * 4);
+    aMisc.set([rand() * 6.2832, 0.6 + rand() * 1.6, 0.6 + rand() * 2.2, 0], i * 4);
+    const c = palette[(rand() * palette.length) | 0];
+    aColor.set([c.r, c.g, c.b], i * 3);
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  pGeo.setAttribute('aOrbit', new THREE.BufferAttribute(aOrbit, 4));
+  pGeo.setAttribute('aMisc', new THREE.BufferAttribute(aMisc, 4));
+  pGeo.setAttribute('aColor', new THREE.BufferAttribute(aColor, 3));
+  const uniforms = { uTime: { value: 0 }, uPR: { value: pr }, uSize: { value: 30 },
+    uTouch: { value: new THREE.Vector3(0, 0, 100) }, uKick: { value: 0 }, uRad: { value: 1.5 } };
+  const swarm = new THREE.Points(pGeo, new THREE.ShaderMaterial({
+    uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: `
+      attribute vec4 aOrbit; attribute vec4 aMisc; attribute vec3 aColor;
+      uniform float uTime; uniform float uPR; uniform float uSize;
+      uniform vec3 uTouch; uniform float uKick; uniform float uRad;
+      varying vec3 vC; varying float vA;
+      void main(){
+        float a = aOrbit.y + uTime * aOrbit.z;
+        float r = aOrbit.x * (1.0 + 0.05 * sin(uTime * 0.5 + aOrbit.y * 5.0));
+        vec3 p = vec3(cos(a) * r, sin(a * 2.0 + aMisc.x) * 0.12 * r, sin(a) * r);
+        float ci = cos(aOrbit.w), si = sin(aOrbit.w);
+        p = vec3(p.x, p.y * ci - p.z * si, p.y * si + p.z * ci);
+        float n = aMisc.x + uTime * 0.02; float cn = cos(n), sn = sin(n);
+        p = vec3(p.x * cn + p.z * sn, p.y, -p.x * sn + p.z * cn);
+        vec3 dv = p - uTouch;
+        float push = exp(-dot(dv, dv) / (uRad * uRad)) * uKick;
+        p += normalize(dv + vec3(0.0001)) * push * 0.8;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float tw = 0.5 + 0.5 * sin(uTime * aMisc.z + aOrbit.y * 7.0);
+        tw = tw * tw * (3.0 - 2.0 * tw);
+        vA = min(1.0, 0.1 + 0.9 * tw + push * 0.6); vC = aColor;
+        gl_PointSize = aMisc.y * uPR * uSize / -mv.z * (1.0 + push * 0.9);
+      }`,
+    fragmentShader: `
+      varying vec3 vC; varying float vA;
+      void main(){
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.0, d); a *= a;
+        gl_FragColor = vec4(vC * (1.0 + a * 1.5), a * vA);
+      }`
+  }));
+  swarm.frustumCulled = false;
+  scene.add(swarm);
+
+  // ---------- Далёкие звёзды ----------
+  const starPos = new Float32Array(1600 * 3);
+  for (let i = 0; i < 1600; i++) {
+    const v = new THREE.Vector3(rand() - .5, rand() - .5, rand() - .5).normalize().multiplyScalar(60 + rand() * 60);
+    starPos.set([v.x, v.y, v.z], i * 3);
+  }
+  const sGeo = new THREE.BufferGeometry();
+  sGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(sGeo, new THREE.PointsMaterial({
+    color: 0x8fa2ff, size: 0.35, sizeAttenuation: true, transparent: true, opacity: .55, depthWrite: false }));
+  scene.add(stars);
+
+  // ---------- Управление: мышь и тач (1 палец — вращение, 2 пальца — масштаб) ----------
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.enablePan = false;
+  controls.rotateSpeed = 0.7;
+  controls.minDistance = 6;
+  controls.maxDistance = 22;
+  window.sceneControls = controls;
+  controls.autoRotate = !reduceMotion;
+  controls.autoRotateSpeed = 0.5;
+  let resumeTimer = 0;
+  controls.addEventListener('start', () => {
+    controls.autoRotate = false; clearTimeout(resumeTimer);
+  });
+  controls.addEventListener('end', () => {
+    if (!reduceMotion) resumeTimer = setTimeout(() => { controls.autoRotate = true; }, 4000);
+  });
+
+  // ---------- Реакция на касание (работает и в обычном режиме, и в режиме 3D) ----------
+  const sphereProxy = new THREE.Mesh(new THREE.SphereGeometry(1.95, 16, 12), new THREE.MeshBasicMaterial({ visible: false }));
+  scene.add(sphereProxy);
+  const pickables = [sphereProxy].concat(ringObjs.map(o => o.proxy));
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  const fx = { active: false, hold: 0, wave: -1, pulse: -1, kick: 0, imp: 0, ring: -1 };
+  const smooth = x => x * x * (3 - 2 * x);
+  const IGNORE = 'a,button,input,select,textarea,label,.glass,.plate,.top,.scene-btn';
+  const MOVE_TOL = 14;
+  let pid = null, sx = 0, sy = 0, began = false, delay = 0, hitInfo = null;
+
+  function pick(x, y) {
+    ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObjects(pickables, false)[0] || null;
+  }
+  function begin() {
+    began = true; fx.active = true; fx.wave = 0; fx.pulse = -1;
+    const r = hitInfo.object.userData.ring;
+    fx.ring = r === undefined ? -1 : r;
+    uniforms.uTouch.value.copy(hitInfo.point);
+    haloU.uDir.value.copy(hitInfo.point).normalize();
+  }
+  function end(impulse) {
+    clearTimeout(delay);
+    const was = began;
+    pid = null; began = false; fx.active = false;
+    if (was && impulse) { fx.pulse = 0; fx.imp = 1; }
+  }
+  // Слушатели пассивные и не отменяют жесты: прокрутка страницы остаётся нативной.
+  addEventListener('pointerdown', e => {
+    if (pid !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (e.target.closest && e.target.closest(IGNORE)) return;
+    const hit = pick(e.clientX, e.clientY);
+    if (!hit) return;
+    pid = e.pointerId; sx = e.clientX; sy = e.clientY; hitInfo = hit;
+    if (e.pointerType === 'mouse') begin(); else delay = setTimeout(begin, 90); // не мигаем, если палец начал скролл
+  }, { passive: true });
+  addEventListener('pointermove', e => {
+    if (e.pointerId === pid && Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOL) end(false);
+  }, { passive: true });
+  addEventListener('pointerup', e => {
+    if (e.pointerId !== pid) return;
+    if (!began) { clearTimeout(delay); begin(); }   // быстрый тап
+    end(true);
+  }, { passive: true });
+  addEventListener('pointercancel', e => { if (e.pointerId === pid) end(false); }, { passive: true });
+  addEventListener('blur', () => { if (pid !== null) end(false); });
+
+  function fxUpdate(dt) {
+    const K = reduceMotion ? 0.5 : 1;
+    fx.hold = fx.active ? Math.min(1, fx.hold + dt / 1.8) : Math.max(0, fx.hold - dt * 1.6);
+    if (fx.wave >= 0) { fx.wave += dt / 1.3; if (fx.wave >= 1) fx.wave = -1; }
+    if (fx.pulse >= 0) { fx.pulse += dt / 1.1; if (fx.pulse >= 1) fx.pulse = -1; }
+    fx.imp *= Math.exp(-dt * 3.2);
+    const h = smooth(fx.hold);
+    const target = fx.active ? 0.3 + 0.35 * h : 0;
+    fx.kick += (target - fx.kick) * (1 - Math.exp(-dt * 7));
+    uniforms.uKick.value = (fx.kick + fx.imp * 0.5) * K;   // частицы разлетаются и плавно возвращаются
+    uniforms.uRad.value = 1.3 + 0.7 * h;
+    haloU.uWave.value = fx.wave; haloU.uHold.value = h * K; haloU.uPulse.value = fx.pulse;
+    const pg = fx.pulse >= 0 ? (1 - fx.pulse) * (1 - fx.pulse) : 0;
+    for (const o of ringObjs) {
+      const tgt = o.i === fx.ring ? Math.max(h * 0.8, pg) : 0;
+      o.boost += (tgt - o.boost) * (1 - Math.exp(-dt * 10));
+      o.core.material.color.copy(o.col).multiplyScalar(2.2 + 2.4 * o.boost * K);
+    }
+    const li = 3.0 + (h * 3 + pg * 4) * K;
+    lightA.intensity = li; lightB.intensity = li;
+  }
+
+  // ---------- Bloom ----------
+  const size = new THREE.Vector2();
+  let composer = null, bloom = null;
+  try {
+    const gl = renderer.getContext();
+    const half = renderer.capabilities.isWebGL2
+      ? renderer.extensions.has('EXT_color_buffer_float')
+      : renderer.extensions.has('EXT_color_buffer_half_float');
+    const opts = { format: THREE.RGBAFormat, type: half ? THREE.HalfFloatType : THREE.UnsignedByteType };
+    const rt = renderer.capabilities.isWebGL2
+      ? new THREE.WebGLMultisampleRenderTarget(innerWidth * pr, innerHeight * pr, opts)
+      : new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, opts);
+    composer = new THREE.EffectComposer(renderer, rt);
+    composer.setPixelRatio(pr);
+    composer.addPass(new THREE.RenderPass(scene, camera));
+    bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.15, 0.85, 0.12);
+    composer.addPass(bloom);
+    composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
+  } catch (e) {
+    composer = null; // без Bloom: остаётся сильная подсветка материалов
+  }
+
+  // ---------- Адаптивность ----------
+  let lw = 0, lh = 0;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+    if (coarse && w === lw && Math.abs(h - lh) < 160) return; // адресная строка iOS при прокрутке
+    lw = w; lh = h;
+    camera.aspect = aspect;
+    camera.fov = aspect >= 1 ? 48 : 48 + Math.min((1 - aspect) * 40, 28);
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    if (composer) composer.setSize(w, h);
+    uniforms.uPR.value = pr;
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+  resize();
+
+  // ---------- Анимация ----------
+  const clock = new THREE.Clock();
+  let t = 0;
+  function frame() {
+    requestAnimationFrame(frame);
+    const raw = Math.min(clock.getDelta(), 0.05);
+    const dt = raw * timeScale;
+    t += dt;
+    uniforms.uTime.value = t;
+
+    for (const o of ringObjs) {
+      o.spin.rotation.y += o.cfg.spin * dt;                       // вращение по орбите
+      o.pivot.rotation.y += o.cfg.prec * dt;                      // прецессия плоскости
+      o.pivot.rotation.x = o.cfg.tilt[0] + Math.sin(t * 0.25 + o.i * 1.7) * 0.18; // качание
+      o.pivot.rotation.z = o.cfg.tilt[2] + Math.cos(t * 0.19 + o.i * 2.3) * 0.12;
+    }
+    lightA.position.set(Math.cos(t * 0.45) * 6, 3, Math.sin(t * 0.45) * 6);
+    lightB.position.set(Math.cos(t * 0.35 + 3.1) * 6, -2, Math.sin(t * 0.35 + 3.1) * 6);
+    sphere.rotation.y += dt * 0.05;
+    stars.rotation.y += dt * 0.004;
+
+    fxUpdate(raw);
+    controls.update();
+    if (composer) composer.render(); else renderer.render(scene, camera);
+  }
+  frame();
+})();
+</script>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const canvas = document.querySelector('#app canvas');
+  const btn = document.getElementById('sceneBtn');
+  const label = btn.querySelector('span');
+  const top = document.getElementById('top');
+  let sceneMode = false;
+
+  // Выключено: сцена не принимает касания, палец и колесо просто листают страницу.
+  // Включено: интерфейс скрыт, сцена получает все жесты (вращение, щипок, колесо).
+  function setMode(on) {
+    sceneMode = on;
+    root.classList.toggle('scene-mode', on);
+    btn.setAttribute('aria-checked', String(on));
+    canvas.style.touchAction = on ? 'none' : 'auto';
+    canvas.style.pointerEvents = on ? 'auto' : 'none';
+    if (window.sceneControls) window.sceneControls.enabled = on;
+  }
+  setMode(false);
+  btn.addEventListener('click', () => setMode(!sceneMode));
+  addEventListener('keydown', e => { if (e.key === 'Escape' && sceneMode) setMode(false); });
+
+  // Колесо мыши листает страницу; масштаб сцены колесом работает в режиме 3D
+  addEventListener('wheel', e => { if (!sceneMode && e.target === canvas) e.stopPropagation(); },
+    { capture: true, passive: true });
+
+  const onScroll = () => top.classList.toggle('solid', scrollY > 24);
+  addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ---- Форма заявки: отправка через Formspree ----
+  const LEAD_ENDPOINT = 'https://formspree.io/f/xbgdyzdn';
+  const form = document.getElementById('lead');
+  const st = document.getElementById('status');
+  const okCard = document.getElementById('okCard');
+  const sendBtn = form.querySelector('button[type="submit"]');
+  const sendTxt = sendBtn.querySelector('.btn-t');
+  const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  let requestId = uid(), shownAt = Date.now(), sending = false;
+
+  // Те же правила проверки контакта применяются на сервере (api/lead.js)
+  function parseContact(raw) {
+    const v = raw.trim();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return { kind: 'email', value: v };
+    const tg = v.replace(/^(https?:\/\/)?(www\.)?t\.me\//i, '').replace(/^@/, '');
+    if (/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(tg)) return { kind: 'telegram', value: '@' + tg };
+    const digits = v.replace(/\D/g, '');
+    if (/^\+?[\d\s().-]{10,22}$/.test(v) && digits.length >= 10 && digits.length <= 15) return { kind: 'phone', value: v };
+    return null;
+  }
+  function setErr(field, msg) {
+    const el = form.elements.namedItem(field), m = document.getElementById('e-' + field);
+    if (el && el.setAttribute) el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    if (m) m.textContent = msg || '';
+  }
+  const say = (cls, txt) => { st.className = 'status ' + cls; st.textContent = txt; };
+  const val = (fd, k) => String(fd.get(k) || '').trim();
+
+  form.addEventListener('input', e => { if (e.target.name) setErr(e.target.name, ''); });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (sending) return;                                  // защита от двойного нажатия
+    const fd = new FormData(form);
+    const d = { name: val(fd, 'name'), contact: val(fd, 'contact'), type: val(fd, 'type'),
+                message: val(fd, 'message'), budget: val(fd, 'budget'), website: String(fd.get('website') || '') };
+    let first = null;
+    const bad = (f, m) => { setErr(f, m); first = first || f; };
+    if (d.name.length < 2) bad('name', 'Введите имя, минимум 2 символа.'); else setErr('name', '');
+    if (!parseContact(d.contact)) bad('contact', 'Укажите Telegram (@username), email или телефон.'); else setErr('contact', '');
+    if (d.message.length < 10) bad('message', 'Опишите задачу, минимум 10 символов.'); else setErr('message', '');
+    if (first) { say('err', 'Проверьте выделенные поля.'); form.elements.namedItem(first).focus(); return; }
+
+    sending = true; sendBtn.disabled = true; sendTxt.textContent = 'Отправляем...';
+    form.setAttribute('aria-busy', 'true'); say('', '');
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 15000);
+    try {
+      const payload = { name: d.name, contact: d.contact, type: d.type, message: d.message, budget: d.budget,
+        requestId, elapsed: Date.now() - shownAt, _gotcha: d.website, _subject: 'Новая заявка SMIRNOV 3D DIGITAL' };
+      const r = await fetch(LEAD_ENDPOINT, { method: 'POST', signal: ctl.signal,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) });
+      let data = null; try { data = await r.json(); } catch (_) {}
+      if (r.ok && (!data || data.ok !== false)) {                       // подтверждение только после ответа сервера
+        form.reset(); ['name', 'contact', 'message', 'budget'].forEach(f => setErr(f, ''));
+        say('', ''); form.classList.add('sent'); requestId = uid(); okCard.focus({ preventScroll: true });
+      } else if (r.status === 400 && data && data.fields) {
+        Object.keys(data.fields).forEach(f => setErr(f, data.fields[f]));
+        say('err', 'Проверьте выделенные поля.');
+      } else if (r.status === 429) {
+        say('err', 'Слишком много заявок подряд. Попробуйте через несколько минут.');
+      } else {
+        say('err', 'Не удалось отправить заявку. Проверьте соединение и нажмите «Отправить заявку» ещё раз.');
+      }
+    } catch (_) {
+      say('err', 'Не удалось отправить заявку. Проверьте соединение и нажмите «Отправить заявку» ещё раз.');
+    } finally {
+      clearTimeout(timer); sending = false; sendBtn.disabled = false; sendTxt.textContent = 'Отправить заявку';
+      form.removeAttribute('aria-busy');
+    }
+  });
+  document.getElementById('again').addEventListener('click', () => {
+    form.classList.remove('sent'); say('', ''); shownAt = Date.now();
+  });
+})();
+</script>
+</body>
+</html>
